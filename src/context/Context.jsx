@@ -1,5 +1,6 @@
 import { createContext, useState } from "react";
 import run from "../config/gemini";
+import { use } from "react";
 
 export const Context = createContext();
 
@@ -10,7 +11,7 @@ const ContextProvider = (props) => {
   const [showResult, setShowResult] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resultData, setResultData] = useState("");
-
+  const [documentText, setDocumentText] = useState("");
   const delayPara = (index, nextWord) => {
     setTimeout(function () {
       setResultData((prev) => prev + nextWord);
@@ -27,15 +28,17 @@ const ContextProvider = (props) => {
       setResultData("");
       setLoading(true);
       setShowResult(true);
-      let response;
-      if (prompt !== undefined) {
-        response = await run(prompt);
-        setRecentPrompt(prompt);
-      } else {
+      const contextPrompt = documentText
+        ? `DOCUMENT CONTEXT:\n${documentText}\n\nQUERY: ${prompt || input}`
+        : prompt || input;
+
+      // Store prompt before sending
+      if (!prompt) {
         setPrevPrompts((prev) => [...prev, input]);
         setRecentPrompt(input);
-        response = await run(input);
       }
+
+      const response = await run(contextPrompt);
 
       let responseArray = response.split("**");
       let newResponse = "";
@@ -75,6 +78,8 @@ const ContextProvider = (props) => {
     resultData,
     setResultData,
     newChat,
+    documentText,
+    setDocumentText,
   };
 
   return (

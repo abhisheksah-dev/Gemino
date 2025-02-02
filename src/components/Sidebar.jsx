@@ -4,8 +4,19 @@ import { FaPlus } from "react-icons/fa6";
 import { AiOutlineQuestionCircle } from "react-icons/ai";
 import { IoSettingsOutline } from "react-icons/io5";
 import { CiTimer } from "react-icons/ci";
+import { MdAttachFile } from "react-icons/md";
+
 import { assets } from "../assets/assets";
 import { Context } from "../context/Context";
+
+// Replace the top imports in Sidebar.jsx
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf";
+import { use } from "react";
+// Set worker source using local build (no CDN)
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/legacy/build/pdf.worker.min.js",
+  import.meta.url
+).toString();
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(true);
@@ -21,12 +32,76 @@ const Sidebar = () => {
     setInput,
     input,
     newChat,
+    setDocumentText,
   } = useContext(Context);
+
+  const handleFileUpload = async (file) => {
+    try {
+      if (!file) {
+        alert("Please select a file first");
+        return;
+      }
+      let text = "";
+      if (file.type === "application/pdf") {
+        // Use the globally imported pdfjsLib (do not re-import it)
+        const pdf = await pdfjsLib.getDocument({
+          data: await file.arrayBuffer(),
+          useWorker: true,
+        }).promise;
+
+        let pdfText = "";
+        // Loop through all pages and extract text
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const strings = content.items.map((item) => item.str);
+          pdfText += strings.join(" ") + "\n";
+        }
+        text = pdfText;
+      } else if (
+        file.type ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ) {
+        // Use mammoth for DOCX extraction in the browser
+        const mammoth = await import("mammoth");
+        const result = await mammoth.extractRawText({
+          arrayBuffer: await file.arrayBuffer(),
+        });
+        text = result.value;
+      } else if (file.type === "text/plain") {
+        text = await file.text();
+      }
+      // Save the extracted text into context
+      setDocumentText(text);
+      alert(`Document loaded! Context will be used for future queries.`);
+    } catch (error) {
+      console.error("Document processing failed", error);
+    }
+  };
+
+  const handleAudioInput = () => {
+    const speechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!speechRecognition) {
+      alert("Speech Recognition is not supported in this browser.");
+      return;
+    }
+    const recognition = new speechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+    };
+    recognition.start();
+  };
 
   const loadPrompt = async (prompt) => {
     setRecentPrompt(prompt);
     await onSent(prompt);
   };
+
   return (
     <div className="flex font-['Outfit'] min-h-screen fadeIn-animation">
       {/* Sidebar */}
@@ -50,21 +125,20 @@ const Sidebar = () => {
             </button>
             <div className="flex flex-col fadeIn-animation">
               <p className="mb-4">Recent</p>
-              {prevPrompts.map((item, index) => {
-                return (
-                  <div
-                    onClick={() => loadPrompt(item)}
-                    className="flex items-center gap-1 bg-slate-200  rounded-2xl mb-1"
-                  >
-                    <img
-                      className="w-12 h-12 p-1"
-                      src={assets.message_icon}
-                      alt=""
-                    />
-                    <p>{item.slice(0, 18)} ...</p>
-                  </div>
-                );
-              })}
+              {prevPrompts.map((item, index) => (
+                <div
+                  key={index}
+                  onClick={() => loadPrompt(item)}
+                  className="flex items-center gap-1 bg-slate-200 rounded-2xl mb-1 cursor-pointer"
+                >
+                  <img
+                    className="w-12 h-12 p-1"
+                    src={assets.message_icon}
+                    alt=""
+                  />
+                  <p>{item.slice(0, 18)} ...</p>
+                </div>
+              ))}
             </div>
             {/* Spacer */}
             <div className="flex-grow" />
@@ -230,15 +304,35 @@ const Sidebar = () => {
               value={input}
             />
             <div className="flex items-center space-x-3">
-              <img
-                src={assets.gallery_icon}
-                alt="Gallery"
-                className="w-6 h-6 cursor-pointer"
+              <input
+                type="file"
+                id="document-upload"
+                hidden
+                onChange={(e) => {
+                  if (e.target.files?.[0]) {
+                    handleFileUpload(e.target.files[0]);
+                    e.target.value = null; // Reset input
+                  }
+                }}
+                accept=".pdf,.docx,.txt"
               />
+              <label
+                htmlFor="document-upload"
+                className="cursor-pointer  rounded-full hover:bg-gray-100 transition-colors"
+                title="Attach document"
+              >
+                <span className="text-xl">
+                  <MdAttachFile />
+                </span>
+              </label>
+              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block bg-white p-2 rounded-lg shadow-lg text-sm">
+                Attach PDF/DOCX/TXT
+              </div>
               <img
                 src={assets.mic_icon}
                 alt="Mic"
                 className="w-6 h-6 cursor-pointer"
+                onClick={handleAudioInput}
               />
               <img
                 onClick={() => onSent()}
