@@ -191,7 +191,7 @@ const Sidebar = () => {
       </div>
       <div className="flex-1 relative p-4 sm:p-6">
         <div className="flex justify-between items-center mb-4">
-          <h1 className="text-xl sm:text-2xl text-[#585858]">Gemini</h1>
+          <h1 className="text-xl sm:text-2xl text-[#585858]">Gemino</h1>
           <img
             className="w-10 h-10 sm:w-12 sm:h-12 rounded-full"
             src="/profile.jpg"
