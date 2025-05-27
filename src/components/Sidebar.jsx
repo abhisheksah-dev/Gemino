@@ -343,7 +343,7 @@ const Sidebar = () => {
             </div>
           </div>
           <p className="mt-2 text-center text-xs sm:text-sm text-gray-500">
-            Gemini may produce inaccurate information about people, places, or
+            Gemino may produce inaccurate information about people, places, or
             facts.
           </p>
         </div>
